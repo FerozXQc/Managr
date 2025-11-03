@@ -1,0 +1,9 @@
+venv
+venv/*
+
+.env
+
+backend/db/__pycache__/*
+backend/db/__pycache__
+
+managr.db
