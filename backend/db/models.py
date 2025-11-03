@@ -1,6 +1,7 @@
-from sqlalchemy import Integer, Column, String, func, ForeignKey
+from sqlalchemy import DateTime,Integer, Column,Enum,Date,Time, String, func, ForeignKey
 from sqlalchemy.orm import declarative_base,relationship
 from datetime import datetime
+from .database import Base
 import enum
 
 class AttendanceStatus(enum.Enum):
@@ -14,23 +15,18 @@ class EmployeeStatus(enum.Enum):
     TERMINATED = "terminated"
     INACTIVE = "inactive"
 
-Base = declarative_base()
-
 class Employee(Base):
     __tablename__ = 'employees'
     id = Column(Integer,primary_key=True,index=True)
     name = Column(String(100),nullable=False)
     phone = Column(String(100),unique=True,nullable=False)
-
     dept_id = Column(Integer,ForeignKey("departments.id"),nullable=False)
     role_id = Column(Integer,ForeignKey("roles.id"),nullable=False)
-
     department = relationship("Department", back_populates="employees")
     role = relationship("Role", back_populates="employees")
     attendance_logs = relationship("Attendance", back_populates="employee")
-
     join_date = Column(DateTime, server_default=func.now())
-    status = Column(Enum(EmployeeStatus), default=EmployeeStatus.ACTIVE, nullable=False)
+    status = Column(Enum(EmployeeStatus), default=EmployeeStatus.ACTIVE)
 
     def __repr__(self):
         return f"<Employee(id='{self.id}',dept_id='{self.name}')>"
