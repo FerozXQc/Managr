@@ -29,7 +29,7 @@ class Employee(Base):
     status = Column(Enum(EmployeeStatus), default=EmployeeStatus.ACTIVE)
 
     def __repr__(self):
-        return f"<Employee(id='{self.id}',dept_id='{self.name}')>"
+        return f"<Employee(id='{self.id}',name='{self.name}',dept_id='{self.dept_id}', role_id='{self.role_id}',join_date='{self.join_date}',status='{self.status}')>"
 
 class Department(Base):
     __tablename__ = 'departments'
@@ -39,7 +39,7 @@ class Department(Base):
     employees = relationship("Employee",back_populates="department")
 
     def __repr__(self):
-        return f"<Department(id='{self.id}',dept_id='{self.dept}')>"
+        return f"<Department(id='{self.id}',dept='{self.dept}',description='{self.description}')>"
 
 class Role(Base):
     __tablename__ = 'roles'
@@ -49,7 +49,7 @@ class Role(Base):
     employees = relationship("Employee",back_populates="role")
 
     def __repr__(self):
-        return f"<Role(id='{self.id}',dept_id='{self.role}')>"
+        return f"<Role(id='{self.id}',role='{self.role}',description='{self.description}')>"
 
 class Attendance(Base):
     __tablename__ = "attendance"
