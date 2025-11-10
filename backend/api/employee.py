@@ -10,9 +10,9 @@ employeeRouter = APIRouter(
     tags = ["Employees"]
 )
 
-@employeeRouter.get('/{emp_id}')
-def get_employee_details(emp_id:int,db:Session=Depends(get_db)):
-    employee = fetch_emp_by_id(emp_id,db)
+@employeeRouter.get('/{employee_id}')
+def get_employee_details(employee_id:int,db:Session=Depends(get_db)):
+    employee = fetch_emp_by_id(employee_id,db)
     if not employee:
         return {"statusCode":404,"message":"Employee not found!"}
     return {"statusCode":200,"message":f"employee:{employee}"}
@@ -26,7 +26,7 @@ def create_new_employee(emp: CreateEmployeeSchema,db:Session=Depends(get_db)):
     else:
         return {"statusCode":400,"message":"Couldnt complete the request"}
 
-@employeeRouter.post('/delete/{emp_id}')
+@employeeRouter.delete('/delete/{emp_id}')
 def delete_employee_record(emp_id:int,db:Session=Depends(get_db)):
     if not fetch_emp_by_id(emp_id,db):
         return {"statusCode":404,"message":"Employee not found!"}
