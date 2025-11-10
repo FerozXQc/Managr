@@ -39,8 +39,8 @@ def get_employees_by_department(dept_id:int,db:Session=Depends(get_db)):
 @departmentRouter.post('/delete/{dept_id}')
 def delete_employee_record(dept_id:int,db:Session=Depends(get_db)):
     if not fetch_dept_by_id(dept_id,db):
-        return {"statusCode":404,"message":"Employee not found!"}
+        return {"statusCode":404,"message":"Department not found!"}
     if delete_department(dept_id,db):
-        return {"statusCode":200,"message":"Employee deleted from database"}
+        return {"statusCode":200,"message":"Department deleted from database"}
     else:
         return {"statusCode":400,"message":"Couldnt complete the request"}
