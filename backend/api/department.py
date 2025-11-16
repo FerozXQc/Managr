@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from backend.db.models import Employee,Department
+from backend.db.models import Department
 from backend.db.database import get_db
 from sqlalchemy.orm import Session
 from backend.db.schemas import CreateEmployeeSchema, CreateDepartmentSchema

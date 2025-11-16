@@ -1,9 +1,23 @@
-from pydantic import BaseModel,Field
+from pydantic import BaseModel,Field,EmailStr
 from datetime import date
 
+class VerifyEmployeeSchema(BaseModel):
+    full_name:str
+    email:str
+    password:str
+
+class AuthenticateEmployeeSchema(BaseModel):
+    email:str
+    password:str
+
+class RegisterEmployeeSchema(BaseModel):
+    full_name:str
+    email:str
+    password:str
+
 class CreateEmployeeSchema(BaseModel):
-    name:str
-    phone:str
+    full_name:str
+    email:str
     department_id:int
     role_id:int
 
@@ -22,4 +36,8 @@ class AttendanceDateRangeSchema(BaseModel):
 class AttendanceMonthRangeSchema(BaseModel):
     employee_id:int
     month: str = Field(..., pattern=r"^\d{4}-\d{2}$")  # YYYY-MM
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
 

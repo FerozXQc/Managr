@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Query
-from backend.db.models import Employee, Attendance
+from backend.db.models import  Attendance
 from backend.db.database import get_db
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
