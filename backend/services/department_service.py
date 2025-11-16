@@ -1,4 +1,4 @@
-from backend.db.models import (Employee,Department,Role,Attendance)
+from backend.db.models import (EmployeeDetails,Department,Role,Attendance)
 from backend.db.schemas import CreateDepartmentSchema
 from sqlalchemy.orm import Session
 
@@ -7,7 +7,7 @@ def fetch_dept_by_id(department_id:int,db:Session):
 
 def fetch_emp_by_dept(department_id: int, db: Session):
     #returns [] if no records found
-    return db.query(Employee).filter(Employee.department_id == department_id).all()
+    return db.query(EmployeeDetails).filter(EmployeeDetails.department_id == department_id).all()
 
 def create_department(department: CreateDepartmentSchema, db:Session):
     department_record = Department(**department.dict())

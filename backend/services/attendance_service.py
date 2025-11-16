@@ -1,4 +1,4 @@
-from backend.db.models import (Employee,Attendance)
+from backend.db.models import Attendance
 from backend.db.schemas import EmployeeIdSchema, AttendanceDateRangeSchema, AttendanceMonthRangeSchema
 from sqlalchemy.orm import Session
 from datetime import datetime,date, timezone, timedelta
