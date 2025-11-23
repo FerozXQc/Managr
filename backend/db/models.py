@@ -7,27 +7,16 @@ from .database import Base
 import enum
 from datetime import datetime
 
-
-# -------------------------
-# ENUMS
-# -------------------------
-
 class AttendanceStatus(enum.Enum):
     PRESENT = "Present"
     ABSENT = "Absent"
     LEAVE = "Leave"
-
 
 class EmployeeStatus(enum.Enum):
     ACTIVE = "active"
     ON_LEAVE = "on_leave"
     TERMINATED = "terminated"
     INACTIVE = "inactive"
-
-
-# -------------------------
-# EMPLOYEE BASE TABLE
-# -------------------------
 
 class Employee(Base):
     __tablename__ = 'employees'
@@ -42,11 +31,6 @@ class Employee(Base):
 
     def __repr__(self):
         return f"<Employee(id={self.id}, name='{self.full_name}', email='{self.email}')>"
-
-
-# -------------------------
-# EMPLOYEE DETAILS (1-1)
-# -------------------------
 
 class EmployeeDetails(Base):
     __tablename__ = 'employee_details'
@@ -73,11 +57,6 @@ class EmployeeDetails(Base):
             f"status={self.status.value})>"
         )
 
-
-# -------------------------
-# DEPARTMENT TABLE
-# -------------------------
-
 class Department(Base):
     __tablename__ = 'departments'
 
@@ -89,7 +68,6 @@ class Department(Base):
 
     def __repr__(self):
         return f"<Department(id={self.id}, dept='{self.department}')>"
-
 
 class Role(Base):
     __tablename__ = 'roles'
@@ -121,3 +99,4 @@ class Attendance(Base):
 
     def __repr__(self):
         return f"<Attendance(id={self.id}, employee_details_id={self.employee_details_id}, date={self.date})>"
+

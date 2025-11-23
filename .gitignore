@@ -1,8 +1,6 @@
 venv
 venv/*
-
 .env
-
 backend/db/__pycache__/*
 backend/app/__pycache__/*
 backend/api/__pycache__/*
@@ -11,6 +9,6 @@ backend/app/__pycache__
 backend/api/__pycache__
 backend/services/__pycache__
 backend/services/__pycache__/*
-
+backend/utils/__pycache__/*
 managr.db
 
