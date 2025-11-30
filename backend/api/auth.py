@@ -1,123 +1,184 @@
+# backend/routers/auth.py
 from typing import Annotated, Optional
-from fastapi import Depends, APIRouter, HTTPException, status, Response,Cookie
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-import jwt
-from backend.services.employee_service import fetch_emp_by_email
-from backend.services.auth_service import authenticate_employee,register_employee
-from backend.db.database import get_db
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Cookie
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from backend.db.schemas import AuthenticateEmployeeSchema, Token, RegisterEmployeeSchema
-from jwt.exceptions import InvalidTokenError
 from datetime import datetime, timedelta, timezone
+import uuid
 import os
 from dotenv import load_dotenv
+
+import jwt
+from jwt.exceptions import ExpiredSignatureError, PyJWTError
+
+from backend.db.database import get_db
+from backend.db.models import Employee, UserRole
+from backend.services.employee_service import fetch_emp_by_email
+from backend.services.auth_service import authenticate_employee
+
 load_dotenv()
-authRouter = APIRouter(
-    prefix = "/auth",
-    tags = ["Authentication"]
-)
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-async def get_current_employee(token: Annotated[str, Depends(oauth2_scheme)], db:Session = Depends(get_db)):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+SECRET_KEY = os.getenv("SECRET_KEY")                  
+REFRESH_SECRET_KEY = os.getenv("REFRESH_SECRET_KEY", SECRET_KEY)
+
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY missing in .env")
+
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+REFRESH_TOKEN_EXPIRE_DAYS = 30
+
+authRouter = APIRouter(prefix="/auth", tags=["Authentication"])
+
+
+
+def create_access_token(data: dict) -> str:
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire, "type": "access"})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def create_refresh_token(data: dict) -> str:
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode.update({
+        "exp": expire,
+        "type": "refresh",
+        "jti": str(uuid.uuid4())
+    })
+    return jwt.encode(to_encode, REFRESH_SECRET_KEY, algorithm=ALGORITHM)
+
+
+
+async def get_current_user(
+    access_token: Annotated[Optional[str], Cookie(alias="access_token")] = None,
+    db: Session = Depends(get_db)
+) -> Employee:
+    if not access_token or not access_token.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    token = access_token.split(" ")[1]
+
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email = payload.get("sub")
-        if email is None:
-            raise credentials_exception
-    except InvalidTokenError:
-        raise credentials_exception
-    employee = fetch_emp_by_email(email,db)
-    if employee is None:
-        raise credentials_exception
-    return employee
+        email: str | None = payload.get("sub")
+        token_type: str = payload.get("type")
+        if not email or token_type != "access":
+            raise HTTPException(status_code=401, detail="Invalid access token")
+    except ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Access token expired")
+    except PyJWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
 
-def create_access_token(data: dict, expires_delta: timedelta | None = None):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
-    else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, os.getenv("SECRET_KEY"), algorithm=os.getenv("ALGORITHM"))
-    return encoded_jwt
+    user = fetch_emp_by_email(email, db)
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="User not found or inactive")
+    return user
 
-
-@authRouter.post('/register')
-def register(employee: RegisterEmployeeSchema,db:Session=Depends(get_db)):
-    if register_employee(employee,db):
-        return {"statusCode":200, "message":f"employee created successfully"}
-    else:
-        return {"statusCode":409,"message":f'user already exists!'}
+def require_super_admin(user: Employee = Depends(get_current_user)):
+    if user.auth_role != UserRole.SUPER_ADMIN:
+        raise HTTPException(status_code=403, detail="Super admin privileges required")
+    return user
 
 
 @authRouter.post("/token")
-async def login_for_access_token(
+async def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     response: Response,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db)
 ):
     user = authenticate_employee(form_data.username, form_data.password, db)
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=401,
             detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
+            headers={"WWW-Authenticate": "Bearer"}
         )
 
-    access_token = create_access_token(
-        data={"sub": user.email},
-        expires_delta=timedelta(minutes=30)
-    )
+    access_token = create_access_token({"sub": user.email, "role": user.auth_role.value})
+    refresh_token = create_refresh_token({"sub": user.email})
 
+    # Set HttpOnly cookies
     response.set_cookie(
         key="access_token",
-        value=access_token,
+        value=f"Bearer {access_token}",
         httponly=True,
-        secure=True,         
+        secure=True,          
         samesite="lax",
-        max_age=30 * 60,     
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         path="/",
     )
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=True,
+        samesite="strict",
+        max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600,
+        path="/auth",
+    )
+
+    # Update last login
+    user.last_login_at = datetime.now(timezone.utc)
+    db.commit()
 
     return {"message": "Login successful"}
 
 
-async def get_current_user(access_token: Optional[str] = Cookie(default=None)):
-    if not access_token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+@authRouter.post("/refresh")
+async def refresh_token_endpoint(
+    response: Response,
+    refresh_token: Annotated[Optional[str], Cookie(alias="refresh_token")] = None,
+    db: Session = Depends(get_db)
+):
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="No refresh token")
 
     try:
-        payload = jwt.decode(access_token, os.getenv("SECRET_KEY"), algorithms=os.getenv("ALGORITHM"))
+        payload = jwt.decode(refresh_token, REFRESH_SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
-        if not email:
-            raise HTTPException(status_code=401, detail="Invalid token payload")
-        return {"email": email}
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.PyJWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+        token_type: str = payload.get("type")
+        if not email or token_type != "refresh":
+            raise HTTPException(status_code=401, detail="Invalid refresh token")
+    except ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Refresh token expired")
+    except PyJWTError:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
 
-@authRouter.get("/me")
-async def me(current_user: dict = Depends(get_current_user)):
-    return current_user 
+    user = fetch_emp_by_email(email, db)
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="User not found or inactive")
 
-@authRouter.post("/logout")
-def logout(response: Response):
-    response.delete_cookie(
+    new_access_token = create_access_token({"sub": user.email, "role": user.auth_role.value})
+
+    response.set_cookie(
         key="access_token",
-        path="/",
+        value=f"Bearer {new_access_token}",
         httponly=True,
         secure=True,
         samesite="lax",
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        path="/",
     )
+
+    return {"message": "Token refreshed"}
+
+
+@authRouter.get("/me")
+async def read_current_user(user: Employee = Depends(get_current_user)):
+    return {
+        "id": user.id,
+        "email": user.email,
+        "full_name": user.full_name,
+        "auth_role": user.auth_role.value,
+        "is_active": user.is_active
+    }
+
+
+@authRouter.post("/logout")
+async def logout(response: Response):
+    response.delete_cookie(key="access_token", path="/", httponly=True)
+    response.delete_cookie(key="refresh_token", path="/auth", httponly=True)
     return {"message": "Logged out successfully"}
