@@ -22,19 +22,19 @@ class CreateEmployeeSchema(BaseModel):
     role_id:int
 
 class CreateDepartmentSchema(BaseModel):
-    department:str
+    name:str
     description:str
 
 class EmployeeIdSchema(BaseModel):
-    employee_id:int
+    id:int
 
 class AttendanceDateRangeSchema(BaseModel):
-    employee_id:int
+    employee_details_id:int
     from_date:date
     to_date:date
 
 class AttendanceMonthRangeSchema(BaseModel):
-    employee_id:int
+    employee_details_id:int
     month: str = Field(..., pattern=r"^\d{4}-\d{2}$")  # YYYY-MM
 
 class Token(BaseModel):

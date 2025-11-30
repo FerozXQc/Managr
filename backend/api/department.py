@@ -19,7 +19,7 @@ def get_department_details(department_id:int,db:Session=Depends(get_db)):
 
 @departmentRouter.post('/create')
 def create_new_department(department: CreateDepartmentSchema,db:Session=Depends(get_db)):
-    if db.query(Department).filter(Department.department == department.department).first():
+    if db.query(Department).filter(Department.name == department.name).first():
         return {"statusCode":409,"message":"Department already exists with the specified name"}
     if create_department(department,db):
         return {"statusCode":201,"message":"Department created"}

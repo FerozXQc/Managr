@@ -5,7 +5,7 @@ from datetime import datetime,date, timezone, timedelta
 import calendar
 
 def check_in_employee(employee_id:int,db:Session):
-    log = Attendance(employee_id=employee_id)
+    log = Attendance(employee_details_id=employee_id)
     try:
         db.add(log)
         db.commit()
@@ -18,7 +18,7 @@ def check_in_employee(employee_id:int,db:Session):
 
 
 def check_out_employee(employee_id:int, db:Session):
-    log = db.query(Attendance).filter(Attendance.employee_id == employee_id, Attendance.date == date.today()).first()
+    log = db.query(Attendance).filter(Attendance.employee_details_id == employee_id, Attendance.date == date.today()).first()
     if not log:
         return None
     try:
@@ -53,7 +53,7 @@ def get_attendance_for_month(schema:AttendanceMonthRangeSchema,db:Session):
 
     return (
         db.query(Attendance)
-        .filter(Attendance.employee_id == schema.employee_id)
+        .filter(Attendance.employee_details_id == schema.employee_details_id)
         .filter(Attendance.date.between(start_date, end_date))
         .all()
     )

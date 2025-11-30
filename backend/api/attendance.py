@@ -23,7 +23,7 @@ attendanceRouter = APIRouter(
 def checkInEmployee(employee_id:int, db:Session = Depends(get_db)):
     if not fetch_emp_by_id(employee_id,db):
         return {"statusCode":404, "message":" Employee no found!"}
-    if db.query(Attendance).filter(Attendance.employee_id == employee_id, Attendance.date == date.today()).first():
+    if db.query(Attendance).filter(Attendance.employee_details_id == employee_id, Attendance.date == date.today()).first():
         return {"statusCode":409,"message":"User already checked in."}
 
     if check_in_employee(employee_id,db):
@@ -34,7 +34,7 @@ def checkInEmployee(employee_id:int, db:Session = Depends(get_db)):
 @attendanceRouter.put('/checkout')
 def checkOutEmployee(employee_id:int, db:Session = Depends(get_db)):
     if db.query(Attendance).filter(
-                                    Attendance.employee_id == employee_id,
+                                    Attendance.employee_details_id == employee_id,
                                     Attendance.date == date.today(),
                                     Attendance.check_out.isnot(None)
                                     ).first():
@@ -47,7 +47,7 @@ def checkOutEmployee(employee_id:int, db:Session = Depends(get_db)):
 
 @attendanceRouter.post('/employee/{employee_id}')
 def get_all_attendance(employee_id: int, db: Session = Depends(get_db)):
-    if db.query(Attendance).filter(Attendance.employee_id == employee_id,
+    if db.query(Attendance).filter(Attendance.employee_details_id == employee_id,
                                    Attendance.date == date.today(),
                                    Attendance.check_out.isnot(None)).first():
         {"statusCode":409, "message":"Empoyee already checked out."}
@@ -67,7 +67,7 @@ def get_attendance_monthly(
     month: str = Query(..., regex=r"^\d{4}-\d{2}$"),
     db: Session = Depends(get_db)
 ):
-    schema = AttendanceMonthRangeSchema(employee_id=employee_id, month=month)
+    schema = AttendanceMonthRangeSchema(employee_details_id=employee_id, month=month)
     logs = get_attendance_for_month(schema, db)   # <-- service function
     
     if not logs:

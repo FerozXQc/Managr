@@ -1,15 +1,15 @@
-from backend.db.models import (EmployeeDetails)
+from backend.db.models import (Employee)
 from backend.db.schemas import CreateEmployeeSchema
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
 def fetch_emp_by_id(employee_id:int,db:Session):
-    user = db.query(EmployeeDetails).filter(EmployeeDetails.employee_id == employee_id).first()
+    user = db.query(Employee).filter(Employee.id == employee_id).first()
     # print(user)
     return user
 
 def fetch_emp_by_email(email,db:Session):
-    return db.query(EmployeeDetails).filter(EmployeeDetails.email == email).first()
+    return db.query(Employee).filter(Employee.email == email).first()
 
 # def create_employee(CreateEmployeeSchema, db: Session):
 #     emp = EmployeeDetails(**CreateEmployeeSchema.dict())
