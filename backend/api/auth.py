@@ -1,5 +1,5 @@
-from typing import Annotated
-from fastapi import Depends, APIRouter, HTTPException, status
+from typing import Annotated, Optional
+from fastapi import Depends, APIRouter, HTTPException, status, Response,Cookie
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import jwt
 from backend.services.employee_service import fetch_emp_by_email
@@ -58,20 +58,66 @@ def register(employee: RegisterEmployeeSchema,db:Session=Depends(get_db)):
 
 @authRouter.post("/token")
 async def login_for_access_token(
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],db:Session = Depends(get_db)
-) -> Token:
-    user = authenticate_employee(form_data.username,form_data.password, db)
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    user = authenticate_employee(form_data.username, form_data.password, db)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    access_token_expires = timedelta(minutes=30)
+
     access_token = create_access_token(
-        data={"sub": user.email}, expires_delta=access_token_expires
+        data={"sub": user.email},
+        expires_delta=timedelta(minutes=30)
     )
-    return Token(access_token=access_token, token_type="bearer")
+
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=True,         
+        samesite="lax",
+        max_age=30 * 60,     
+        path="/",
+    )
+
+    return {"message": "Login successful"}
 
 
+async def get_current_user(access_token: Optional[str] = Cookie(default=None)):
+    if not access_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
+    try:
+        payload = jwt.decode(access_token, os.getenv("SECRET_KEY"), algorithms=os.getenv("ALGORITHM"))
+        email: str = payload.get("sub")
+        if not email:
+            raise HTTPException(status_code=401, detail="Invalid token payload")
+        return {"email": email}
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+@authRouter.get("/me")
+async def me(current_user: dict = Depends(get_current_user)):
+    return current_user 
+
+@authRouter.post("/logout")
+def logout(response: Response):
+    response.delete_cookie(
+        key="access_token",
+        path="/",
+        httponly=True,
+        secure=True,
+        samesite="lax",
+    )
+    return {"message": "Logged out successfully"}
