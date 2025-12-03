@@ -1,0 +1,21 @@
+form {
+    margin: auto; 
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: pink;
+    border: 1px solid;
+    width: fit-content;
+    padding: 20px;
+}
+
+form input{
+    padding: 10px;
+    width: 300px;
+}
+
+.formSection {
+    display: flex;
+    flex-direction: column;
+}
